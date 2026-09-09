@@ -7,21 +7,21 @@ import (
 	"log"
 	"math/rand"
 	"time"
-
+	"kafka-go-start/events"
 	"github.com/google/uuid"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-type PaymentEvent struct {
-	EventID string `json:"event_id"`
-	UserID string `json:"user_id"`
-	AmountCents int64 `json:"amount_cents"`
-	Merchant string `json:"merchant"`
-	Status string `json:"status"`
-	EventTime int64 `json:"event_time"`
-}
+// type PaymentEvent struct {
+// 	EventID string `json:"event_id"`
+// 	UserID string `json:"user_id"`
+// 	AmountCents int64 `json:"amount_cents"`
+// 	Merchant string `json:"merchant"`
+// 	Status string `json:"status"`
+// 	EventTime int64 `json:"event_time"`
+// }
 
-func randomize_payment_event(user_pool []string) PaymentEvent {
+func randomize_payment_event(user_pool []string) events.PaymentEvent {
 	event_id := uuid.New().String()
 	user_id := user_pool[rand.Intn(len(user_pool))]
 	amount := int64(rand.Intn(50000) + 1)
@@ -32,7 +32,7 @@ func randomize_payment_event(user_pool []string) PaymentEvent {
 		status = "FAILURE"
 	}
 	event_time := time.Now().UnixMilli()
-	return PaymentEvent{event_id, user_id, amount, merchant, status, event_time}
+	return events.PaymentEvent{event_id, user_id, amount, merchant, status, event_time}
 }
 
 
