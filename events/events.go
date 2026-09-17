@@ -8,3 +8,5 @@ type PaymentEvent struct {
     Status      string `json:"status"`
     EventTime   int64  `json:"event_time"`
 }
+
+

@@ -10,6 +10,7 @@ import (
 	"kafka-go-start/events"
 	"github.com/google/uuid"
 	"github.com/twmb/franz-go/pkg/kgo"
+	"fmt"
 )
 
 // type PaymentEvent struct {
@@ -26,9 +27,8 @@ func randomize_payment_event(user_pool []string) events.PaymentEvent {
 	user_id := user_pool[rand.Intn(len(user_pool))]
 	amount := int64(rand.Intn(50000) + 1)
 	merchant := "stripe"
-	temp := rand.Int() % 2
 	status := "SUCCESS"
-	if temp == 1 {
+	if rand.Intn(100) < 15 {
 		status = "FAILURE"
 	}
 	event_time := time.Now().UnixMilli()
@@ -38,15 +38,16 @@ func randomize_payment_event(user_pool []string) events.PaymentEvent {
 
 
 func main() {
+	// rng := rand.New(rand.NewSource(42))
 	rate       := flag.Int("rate", 100, "events per second")
-	// corruption := flag.Int("corruption", 0, "percent of events emitted as malformed JSON (0-100)")
+	corruption := flag.Int("corruption", 0, "percent of events emitted as malformed JSON (0-100)")
 	// clockSkew  := flag.Bool("clock-skew", false, "randomly backdate some event_time values")
 	// dupRate    := flag.Int("dup-rate", 0, "percent of events re-emitted as duplicates (0-100)")
 	flag.Parse()
 
 	var userPool []string
 	for i := 0; i < 100; i++ {
-		userPool = append(userPool, uuid.New().String())
+		userPool = append(userPool, fmt.Sprintf("user_%03d", i))
 	}
 
 	opts := []kgo.Opt{
@@ -71,11 +72,17 @@ func main() {
 
 	for range ticker.C {
 		event := randomize_payment_event(userPool)
-	
-		payload, err := json.Marshal(event)
-		if err != nil {
-			log.Fatalf("Failed to encode payment event!")
+		var payload []byte
+		if rand.Intn(100) < *corruption {
+			payload = []byte("this is not valid JSON {{{")
+		} else {
+			p, marshalErr := json.Marshal(event)
+			if marshalErr != nil {
+				log.Fatalf("Failed to encode payment event!")
+			}
+			payload = p
 		}
+
 
 		record := &kgo.Record{
 			Key: []byte(event.UserID),
