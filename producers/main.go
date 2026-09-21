@@ -41,7 +41,7 @@ func main() {
 	// rng := rand.New(rand.NewSource(42))
 	rate       := flag.Int("rate", 100, "events per second")
 	corruption := flag.Int("corruption", 0, "percent of events emitted as malformed JSON (0-100)")
-	// clockSkew  := flag.Bool("clock-skew", false, "randomly backdate some event_time values")
+	clockSkew  := flag.Bool("clock-skew", false, "randomly backdate some event_time values")
 	// dupRate    := flag.Int("dup-rate", 0, "percent of events re-emitted as duplicates (0-100)")
 	flag.Parse()
 
@@ -76,6 +76,10 @@ func main() {
 		if rand.Intn(100) < *corruption {
 			payload = []byte("this is not valid JSON {{{")
 		} else {
+			if *clockSkew && rand.Intn(100) < 10 {
+				skewMs := int64(rand.Intn(3*60*1000))   // random 0–3 min backdate
+				event.EventTime -= skewMs
+			}
 			p, marshalErr := json.Marshal(event)
 			if marshalErr != nil {
 				log.Fatalf("Failed to encode payment event!")
