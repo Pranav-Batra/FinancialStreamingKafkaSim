@@ -278,15 +278,4 @@ docker exec -it my-redis redis-cli ZRANGE user:user_042:failures 0 -1 WITHSCORES
     └── main.go             # stateful consumer: dedup, DLQ, watermarks, rebalance handling
 ```
 
----
 
-## What this project demonstrates
-
-- Building correct stateful processing on top of a durable log
-- The precise meaning and limits of "exactly-once" — and how to achieve effectively-once in
-  practice (at-least-once delivery + idempotency)
-- Distinguishing recoverable from unrecoverable failures, and handling each appropriately
-- Event-time vs. processing-time, and watermarks as the resolution to out-of-order data
-- How single-node correctness assumptions break under a distributed consumer group, and how to
-  restore them (partition-local state, rebalance-aware cleanup, concurrency safety)
-- Reasoning explicitly about guarantees *and their boundaries*
