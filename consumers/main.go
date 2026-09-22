@@ -19,6 +19,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/twmb/franz-go/pkg/kgo"
+	"sync"
 )
 
 var spendScript = redis.NewScript(`
@@ -53,6 +54,8 @@ var globalWatermark = int64(math.MaxInt64)
 var useGlobalWatermark = false
 var allowedLatenessMs = int64(2 * 60 * 1000)
 
+var watermarkMu sync.Mutex
+
 func classify(err error) string { // or keep bool isTransient for now
 	if err == nil {
 		return "ok"
@@ -85,6 +88,15 @@ func main() {
 		kgo.ConsumerGroup("my-group-identifier"),
 		kgo.ConsumeTopics("payment-events-topic"),
 		kgo.ConsumeResetOffset(kgo.NewOffset().AtStart()),
+		kgo.OnPartitionsRevoked(func(ctx context.Context, cl *kgo.Client, revoked map[string][]int32) {
+				watermarkMu.Lock()
+				for _, partitions := range revoked {
+					for _, p := range partitions {
+						delete(watermarkTracker, p)
+					}
+				}
+				watermarkMu.Unlock()
+			}),
 		kgo.DisableAutoCommit(),
 	}
 	client, err := kgo.NewClient(opts...)
@@ -123,12 +135,13 @@ func main() {
 			}
 			eventIdempotencyKey := fmt.Sprintf("processed:%v", ev.EventID)
 			curPartition := r.Partition
+			watermarkMu.Lock()
 			if val, ok := watermarkTracker[curPartition]; ok {
 				watermarkTracker[curPartition] = max(val, ev.EventTime)
 			} else {
 				watermarkTracker[curPartition] = ev.EventTime
 			}
-			if len(watermarkTracker) == 3 {
+			if len(watermarkTracker) > 0 {
 				useGlobalWatermark = true
 				globalWatermark = int64(math.MaxInt64)
 				for _, val := range watermarkTracker {
@@ -136,6 +149,7 @@ func main() {
 				}
 				log.Printf("watermark: maxes=%v global=%d ready=%v", watermarkTracker, globalWatermark, useGlobalWatermark)
 			}
+			watermarkMu.Unlock()
 
 
 			// ok, _ := rdb.SetNX(ctx, eventIdempotencyKey, 1, time.Hour).Result()
